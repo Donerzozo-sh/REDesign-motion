@@ -65,29 +65,10 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // ======================================================================
-        // ** 【重要】部署到 GitHub Pages 时，请将此处配置手动替换为您的真实配置 **
-        // ======================================================================
-        
-        // 1. 获取应用 ID（在 Canvas 环境中由 __app_id 变量提供）
-        // 在 GitHub 部署时，您可以直接使用 'default-app-id' 或任何唯一的字符串
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; 
-
-        // 2. 获取 Firebase 配置对象（在 Canvas 环境中由 __firebase_config 变量提供）
-        // 提示：在部署时，您需要将您的真实 Firebase Config JSON 字符串插入到这里，
-        // 否则将无法连接到 Firestore。
         const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
         const firebaseConfig = JSON.parse(firebaseConfigString);
-        
-        // 3. 获取初始身份验证令牌（在 Canvas 环境中由 __initial_auth_token 变量提供）
-        // 提示：在部署时，此令牌通常需要由服务器端提供。如果您的目的是演示，
-        // 您可以暂时忽略此警告，但保存功能只有在 token 存在且有效时才完全可靠。
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        // ======================================================================
-        // ** 部署配置结束 **
-        // ======================================================================
 
         // --- Firebase & State Variables ---
         let db, auth; 
@@ -1232,3 +1213,4 @@
 </body>
 
 </html>
+
