@@ -21,9 +21,9 @@
             transform-origin: center center;
         }
         .grid-item {
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
-                        opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                        filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), 
+                        opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+                        filter 0.15s cubic-bezier(0.4, 0, 0.2, 1);
             will-change: transform, opacity, filter;
             opacity: 0.7;
         }
@@ -67,7 +67,6 @@
         let editTitleWeightEl, editSubtitleWeightEl, editTitleSpacingEl, editSubtitleSpacingEl;
         let editFisheyeRadiusEl, editDecayPowerEl, editMinScaleEl, editMaxScaleEl;
         let editParallaxSmoothingEl, editCanvasScaleEl, editCanvasOffsetXEl;
-        let editTwinkleSpeedEl, editTwinkleIntensityEl;
         let adminToggleBtn, viewToggleBtn;
         let authModal, authUsernameEl, authPasswordEl, authErrorMessageEl, adminTableContainer;
 
@@ -82,9 +81,7 @@
         let currentMaxScale = 3.0;
         let currentParallaxSmoothing = 0.2;
         let currentCanvasScale = 1.0;
-        let currentCanvasOffsetX = 0;
-        let currentTwinkleSpeed = 0.2;
-        let currentTwinkleIntensity = 0.6;
+        let currentCanvasOffsetX = 0; // 新增：左右平移值
 
         const PARALLAX_INTENSITY = 0.1;
         window.currentView = 'grid';
@@ -96,8 +93,7 @@
 
         const DEFAULT_FISHEYE_SETTINGS = { 
             radius: 300, decayPower: 2.0, minScale: 0.175, maxScale: 3.0, 
-            parallaxSmoothing: 0.2, canvasScale: 1.0, canvasOffsetX: 0,
-            twinkleSpeed: 0.2, twinkleIntensity: 0.6
+            parallaxSmoothing: 0.2, canvasScale: 1.0, canvasOffsetX: 0 
         };
         const GRID_COLORS = ['#EF4444','#F97316','#F59E0B','#10B981','#3B82F6','#6366F1','#8B5CF6','#EC4899','#FBBF24','#A78BFA','#4ADE80','#FB7185','#D946EF','#06B6D4'];
 
@@ -115,11 +111,9 @@
         let items = [];
         let itemData = {};
         let mousePos = { x: 0, y: 0 };
-        let isMouseOverCanvas = false; // 关键：鼠标是否在“画布区域”（包括标题区 + 网格）
         let isMouseActive = false;
         let animationFrameId = null;
         let parallaxOffset = { x: 0, y: 0 };
-        let targetParallaxOffset = { x: 0, y: 0 }; // 用于平滑衰减
 
         const getSettingsDocPath = () => `/artifacts/${appId}/public/data/homepage_content/settings`;
         const getGridCollectionPath = () => `/artifacts/${appId}/public/data/grid_items`;
@@ -201,11 +195,9 @@
 
         function resetFocusAndScale() {
             isFocusMode = false; selectedItemId = null;
-            resetGridScale(); 
-            targetParallaxOffset = { x: currentCanvasOffsetX, y: 0 }; // 平滑衰减目标
+            resetGridScale(); resetGrid();
             document.querySelectorAll('.admin-table-row').forEach(r => r.classList.remove('selected-row'));
-            isMouseActive = true; 
-            if (isMouseOverCanvas) startAnimationLoop();
+            isMouseActive = true; startAnimationLoop();
         }
 
         window.handleAdminToggle = () => isAdminMode ? window.setAdminMode(false) || resetFocusAndScale() : window.openAuthModal();
@@ -256,7 +248,7 @@
             const wake = () => {
                 updateFisheyeEffect();
                 if (--frames > 0) requestAnimationFrame(wake);
-                else if (isMouseActive && isMouseOverCanvas) startAnimationLoop();
+                else if (isMouseActive) startAnimationLoop();
             };
             wake();
 
@@ -267,8 +259,7 @@
             if (!isAdminMode) return;
             document.querySelectorAll('.admin-table-row').forEach(r => r.classList.remove('selected-row'));
             row.classList.add('selected-row');
-            selectedItemId = itemId; isFocusMode = true; isMouseActive = true; 
-            if (isMouseOverCanvas) startAnimationLoop();
+            selectedItemId = itemId; isFocusMode = true; isMouseActive = true; startAnimationLoop();
             const item = items.find(i => i.el.dataset.videoId === itemId);
             if (item) {
                 const cx = innerWidth / 2, cy = innerHeight / 2;
@@ -295,7 +286,7 @@
 
         function resetGridScale() { items.forEach(i => { i.el.style.transform = `scale(${currentMinScale})`; i.el.style.opacity = '0.7'; i.el.style.filter = 'brightness(1.0)'; }); }
 
-        function resetGrid() { resetGridScale(); targetParallaxOffset = {x: currentCanvasOffsetX, y: 0}; applyGridTransform(); }
+        function resetGrid() { resetGridScale(); parallaxOffset = {x:0,y:0}; applyGridTransform(); }
 
         function updateGridDOM() {
             items.forEach((it, i) => {
@@ -334,19 +325,11 @@
 
         function updateFisheyeEffect() {
             const cx = innerWidth/2, cy = innerHeight/2;
-
-            // 平滑衰减视差偏移
-            parallaxOffset.x += (targetParallaxOffset.x - parallaxOffset.x) * 0.08;
-            parallaxOffset.y += (targetParallaxOffset.y - parallaxOffset.y) * 0.08;
-
-            if (isMouseOverCanvas && !isFocusMode) {
+            if (!isFocusMode) {
                 const tx = (mousePos.x - cx) * PARALLAX_INTENSITY;
                 const ty = (mousePos.y - cy) * PARALLAX_INTENSITY;
-                targetParallaxOffset.x = tx;
-                targetParallaxOffset.y = ty;
-            } else {
-                targetParallaxOffset.x = currentCanvasOffsetX;
-                targetParallaxOffset.y = 0;
+                parallaxOffset.x += (tx - parallaxOffset.x) * currentParallaxSmoothing;
+                parallaxOffset.y += (ty - parallaxOffset.y) * currentParallaxSmoothing;
             }
             applyGridTransform();
 
@@ -363,22 +346,18 @@
                     scale = currentMaxScale * 1.5; opacity = 1.0; z = 100;
                 } else if (isFocusMode) {
                     scale = currentMinScale * 0.8; opacity = 0.4;
-                } else if (isMouseOverCanvas && dist >= radius) {
-                    it.el.twinklePhase += currentTwinkleSpeed * it.el.twinkleSpeed;
+                } else if (dist >= radius) {
+                    // 闪烁频率减慢为原来的 1/5
+                    it.el.twinklePhase += 0.004 * it.el.twinkleSpeed;  // 原为 0.02
                     const tw = (Math.sin(it.el.twinklePhase) + 1) / 2;
-                    scale = currentMinScale * (1.0 + tw * currentTwinkleIntensity);
-                    bright = 1.0 + tw * currentTwinkleIntensity;
-                } else if (isMouseOverCanvas) {
+                    scale = currentMinScale * (0.7 + tw * 0.6);
+                    bright = 0.3 + tw * 1.1;
+                } else {
                     const p = 1 - dist / radius;
                     const e = 1 - Math.pow(1 - p, currentDecayPower);
                     scale = currentMinScale + (currentMaxScale - currentMinScale) * e;
                     opacity = 0.7 + 0.3 * e;
                     z = 2 + Math.floor(e * 8);
-                } else {
-                    it.el.twinklePhase += currentTwinkleSpeed * it.el.twinkleSpeed;
-                    const tw = (Math.sin(it.el.twinklePhase) + 1) / 2;
-                    scale = currentMinScale * (1.0 + tw * currentTwinkleIntensity);
-                    bright = 1.0 + tw * currentTwinkleIntensity;
                 }
                 it.el.style.transform = `translateZ(0) scale(${scale})`;
                 it.el.style.opacity = opacity;
@@ -407,8 +386,6 @@
                 editParallaxSmoothingEl.value = currentParallaxSmoothing;
                 editCanvasScaleEl.value = currentCanvasScale;
                 editCanvasOffsetXEl.value = currentCanvasOffsetX;
-                editTwinkleSpeedEl.value = currentTwinkleSpeed;
-                editTwinkleIntensityEl.value = currentTwinkleIntensity;
 
                 contentDisplay.classList.add('hidden');
                 editContainer.classList.remove('hidden');
@@ -434,15 +411,14 @@
                     maxScale: parseFloat(editMaxScaleEl.value) || 3.0,
                     parallaxSmoothing: parseFloat(editParallaxSmoothingEl.value) || 0.2,
                     canvasScale: parseFloat(editCanvasScaleEl.value) || 1.0,
-                    canvasOffsetX: parseInt(editCanvasOffsetXEl.value) || 0,
-                    twinkleSpeed: parseFloat(editTwinkleSpeedEl.value) || 0.2,
-                    twinkleIntensity: parseFloat(editTwinkleIntensityEl.value) || 0.6
+                    canvasOffsetX: parseInt(editCanvasOffsetXEl.value) || 0
                 }
             };
             await setDoc(doc(db, getSettingsDocPath()), newSettings, { merge: true });
             window.toggleEditMode(false);
         };
 
+        // ==================== 初始化 ====================
         function setupDOM() {
             gridContainer = document.getElementById('grid-container');
             modal = document.getElementById('video-modal');
@@ -459,7 +435,7 @@
             editSubtitleEl = document.getElementById('edit-subtitle');
             editTitleWeightEl = document.getElementById('edit-title-weight');
             editSubtitleWeightEl = document.getElementById('edit-subtitle-weight');
-            editTitleSpacingEl = document.getElementById('edit-title-title-spacing');
+            editTitleSpacingEl = document.getElementById('edit-title-spacing');
             editSubtitleSpacingEl = document.getElementById('edit-subtitle-spacing');
             editFisheyeRadiusEl = document.getElementById('edit-fisheye-radius');
             editDecayPowerEl = document.getElementById('edit-decay-power');
@@ -468,8 +444,6 @@
             editParallaxSmoothingEl = document.getElementById('edit-parallax-smoothing');
             editCanvasScaleEl = document.getElementById('edit-canvas-scale');
             editCanvasOffsetXEl = document.getElementById('edit-canvas-offset-x');
-            editTwinkleSpeedEl = document.getElementById('edit-twinkle-speed');
-            editTwinkleIntensityEl = document.getElementById('edit-twinkle-intensity');
             adminToggleBtn = document.getElementById('admin-toggle-btn');
             viewToggleBtn = document.getElementById('view-toggle-btn');
             authModal = document.getElementById('auth-modal');
@@ -477,23 +451,9 @@
             authPasswordEl = document.getElementById('auth-password');
             authErrorMessageEl = document.getElementById('auth-error-message');
 
-            // 关键：标题区 + 网格区 都算画布内
-            const canvasArea = [topContentArea, gridContainer];
-            canvasArea.forEach(area => {
-                area.addEventListener('mouseenter', () => {
-                    isMouseOverCanvas = true;
-                    isMouseActive = true;
-                    startAnimationLoop();
-                });
-                area.addEventListener('mouseleave', () => {
-                    isMouseOverCanvas = false;
-                    isMouseActive = false;
-                    targetParallaxOffset = { x: currentCanvasOffsetX, y: 0 };
-                });
-            });
-
-            window.addEventListener('mousemove', e => { if (isMouseOverCanvas) mousePos = {x:e.clientX, y:e.clientY}; });
-
+            closeModal.onclick = closeVideoModalFunc;
+            modal.onclick = e => e.target === modal && closeVideoModalFunc();
+            window.addEventListener('mousemove', e => { mousePos = {x:e.clientX, y:e.clientY}; if (!isMouseActive) { isMouseActive = true; startAnimationLoop(); } });
             gridContainer.onclick = e => {
                 const el = e.target.closest('.grid-item');
                 if (!el) return;
@@ -501,9 +461,6 @@
                 if (isAdminMode) { switchView('table'); const row = document.getElementById('row-'+id); if(row) { selectItem(id,row); row.scrollIntoView({behavior:'smooth'}); } return; }
                 openVideoModal(itemData[id]?.vid || PLACEHOLDER_VID);
             };
-
-            closeModal.onclick = closeVideoModalFunc;
-            modal.onclick = e => e.target === modal && closeVideoModalFunc();
         }
 
         window.addEventListener('load', async () => {
@@ -534,8 +491,6 @@
                     currentParallaxSmoothing = s.parallaxSmoothing || 0.2;
                     currentCanvasScale = s.canvasScale || 1.0;
                     currentCanvasOffsetX = s.canvasOffsetX || 0;
-                    currentTwinkleSpeed = s.twinkleSpeed || 0.2;
-                    currentTwinkleIntensity = s.twinkleIntensity || 0.6;
                     applyGridTransform();
                     updateGridDOM();
                 });
@@ -552,7 +507,7 @@
                         const id = `item_${i}`;
                         if (!itemData[id]) itemData[id] = { img: null, vid: PLACEHOLDER_VID, bgColor: getColorForColumn(getColumnIndex(i)) };
                     }
-                    if (!items.length) { createGrid(); if (isMouseOverCanvas) startAnimationLoop(); }
+                    if (!items.length) { createGrid(); startAnimationLoop(); }
                     else updateGridDOM();
                 });
             } catch (e) {
@@ -562,12 +517,12 @@
                 mainTitleEl.textContent = DEFAULT_CONTENT.title;
                 subTextEl.textContent = DEFAULT_CONTENT.subtitle;
                 for (let i = 0; i < TOTAL_ITEMS; i++) itemData[`item_${i}`] = { img: null, vid: PLACEHOLDER_VID, bgColor: getColorForColumn(getColumnIndex(i)) };
-                createGrid(); if (isMouseOverCanvas) startAnimationLoop();
+                createGrid(); startAnimationLoop();
             }
         });
     </script>
 
-    <!-- 完整 HTML（已加入闪烁频率 & 幅度调节） -->
+    <!-- 完整 HTML（新增左右移动 + 闪烁减慢） -->
     <div id="top-content-area" class="fixed top-0 left-0 right-0 p-8 md:p-12 z-20 text-white pointer-events-none transition-all duration-300">
         <div id="admin-persistent-controls" class="absolute top-8 right-8 md:top-12 md:right-12 z-30 flex space-x-4 pointer-events-auto">
             <button id="view-toggle-btn" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-150 hidden" 
@@ -584,7 +539,7 @@
         <div id="edit-mode-container" class="hidden bg-gray-900/90 backdrop-blur-sm p-6 rounded-xl shadow-2xl pointer-events-auto max-w-4xl">
             <h2 class="text-xl font-bold mb-4 text-red-400">顶部内容及视觉参数编辑 (Admin)</h2>
             <div class="space-y-4">
-                <div><label class="block text-sm font-medium text-gray-400">网站标题</label><input id="edit-web-title" type="text" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="多媒体设计作品集"/></div>
+                <div><label class="block text-sm font-medium text-gray-400">网站标题</label><input id="edit-web-title" type="text" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="灵感矩阵 | 设计作品集"/></div>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="p-4 bg-gray-800 rounded-lg">
                         <label class="block text-lg font-medium text-white mb-2">主标题</label>
@@ -646,14 +601,12 @@
                         <div><label class="block text-sm font-medium text-gray-400">初始大小</label><input id="edit-min-scale" type="number" step="0.01" min="0.01" max="1.0" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="0.175"/></div>
                         <div><label class="block text-sm font-medium text-gray-400">最大放大</label><input id="edit-max-scale" type="number" step="0.1" min="1.0" max="5.0" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="3.0"/></div>
                         <div><label class="block text-sm font-medium text-gray-400">动画平滑度</label><input id="edit-parallax-smoothing" type="number" step="0.01" min="0.01" max="1.0" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="0.2"/></div>
-                        <div><label class="block text-sm font-medium text-gray-400">整体缩放</label><input id="edit-canvas-scale" type="number" step="0.05" min="0.5" max="2.0" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="1.0"/></div>
+                        <div><label class="block text-sm font-medium text-gray-400">整体缩放 (0.5~2.0)</label><input id="edit-canvas-scale" type="number" step="0.05" min="0.5" max="2.0" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="1.0"/></div>
                         <div class="col-span-2 lg:col-span-6">
                             <label class="block text-sm font-medium text-gray-400 mb-1">左右平移 (-2000 ~ +2000px)</label>
-                            <input id="edit-canvas-offset-x" type="range" min="-2000" max="2000" step="50" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" value="0"/>
+                            <input id="edit-canvas-offset-x" type="range" min="-2000" max="2000" step="50" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider" value="0"/>
                             <div class="text-center text-white text-sm mt-1"><span id="offset-value">0</span> px</div>
                         </div>
-                        <div><label class="block text-sm font-medium text-gray-400">闪烁频率 (0.1x ~ 2.0x)</label><input id="edit-twinkle-speed" type="number" step="0.05" min="0.1" max="2.0" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="0.2"/></div>
-                        <div><label class="block text-sm font-medium text-gray-400">闪烁幅度 (0.1 ~ 1.0)</label><input id="edit-twinkle-intensity" type="number" step="0.05" min="0.1" max="1.0" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="0.6"/></div>
                     </div>
                 </div>
             </div>
@@ -664,12 +617,13 @@
         </div>
     </div>
 
+    <!-- 其余 HTML 保持不变 -->
     <div id="admin-table-view" class="fixed inset-0 p-4 md:p-12 z-10 hidden overflow-auto pointer-events-auto">
         <h1 class="text-3xl font-bold mb-4 text-red-400">网格素材列表编辑 (共 60 个项目)</h1>
     </div>
 
     <div id="admin-toggle-btn" class="fixed bottom-4 right-4 z-50 text-gray-400 text-sm font-medium pointer-events-auto cursor-default">
-        2025 <span class="cursor-pointer hover:text-white transition-colors duration-200" onclick="handleAdminToggle()">©</span> All Rights Reserved By REDesign
+        2025 <span class="cursor-pointer hover:text-white transition-colors duration-200" onclick="handleAdminToggle()">©</span> All Rights Reserved by REDesign
     </div>
 
     <div id="grid-container" class="absolute inset-0 m-auto grid" style="transform-origin:center center;transform:translate(0,0) scale(1);transform-style:preserve-3d;"></div>
@@ -701,3 +655,5 @@
     </div>
 </body>
 </html>
+
+
