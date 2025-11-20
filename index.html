@@ -79,14 +79,12 @@
         let currentFisheyeRadius = 300;
         let currentDecayPower = 2.0;
         let currentMinScale = 0.175;
-       
-
         let currentMaxScale = 3.0;
         let currentParallaxSmoothing = 0.2;
         let currentCanvasScale = 1.0;
         let currentCanvasOffsetX = 0;
-        let currentTwinkleSpeed = 0.2; // 新增：闪烁频率（默认 0.2 = 原1/5）
-        let currentTwinkleIntensity = 0.6; // 新增：闪烁幅度（默认 0.6）
+        let currentTwinkleSpeed = 0.2; // 默认闪烁频率为原来的1/5
+        let currentTwinkleIntensity = 0.6; // 默认闪烁幅度
 
         const PARALLAX_INTENSITY = 0.1;
         window.currentView = 'grid';
@@ -123,7 +121,7 @@
         let parallaxOffset = { x: 0, y: 0 };
 
         const getSettingsDocPath = () => `/artifacts/${appId}/public/data/homepage_content/settings`;
-        const getGridCollectionPath = () => `/art0facts/${appId}/public/data/grid_items`;
+        const getGridCollectionPath = () => `/artifacts/${appId}/public/data/grid_items`;
 
         function applyTextStyles(el, style) {
             if (!el) return;
@@ -329,7 +327,31 @@
         }
 
         function renderAdminTable() {
-            // 表格渲染保持不变（略）
+            let html = `<div class="overflow-x-auto h-[80vh] bg-gray-900/90 backdrop-blur-sm rounded-xl shadow-2xl p-4">
+                <table class="min-w-full divide-y divide-gray-700"><thead class="sticky top-0 bg-gray-900/95"><tr>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase w-16">ID</th>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase w-20">预览</th>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase w-24">位置</th>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase">图片 URL</th>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase">视频 URL</th>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-300 uppercase w-24">操作</th>
+                </tr></thead><tbody class="divide-y divide-gray-800">`;
+            for (let newId = 0; newId < TOTAL_ITEMS; newId++) {
+                const orig = CENTER_DISTANCE_MAP.newIdToOriginalIndex[newId];
+                const id = `item_${orig}`;
+                const d = itemData[id] || { img: '', vid: PLACEHOLDER_VID, bgColor: getColorForColumn(getColumnIndex(orig)) };
+                const prev = d.img?.trim() || `https://placehold.co/60x60/${d.bgColor.substring(1)}/FFFFFF?text=${orig}`;
+                const sel = selectedItemId === id ? 'selected-row' : '';
+                html += `<tr id="row-${id}" class="admin-table-row text-gray-300 cursor-pointer ${sel}" onclick="selectItem('${id}',this)">
+                    <td class="px-3 py-2">${newId}</td>
+                    <td class="px-3 py-2"><img src="${prev}" class="table-thumbnail" onerror="this.src='https://placehold.co/60x60/374151/FFFFFF?text=${orig}'"></td>
+                    <td class="px-3 py-2">${renderLocationThumbnail(orig, d.bgColor)}</td>
+                    <td class="px-3 py-2"><input id="img-input-${id}" type="text" value="${d.img||''}" class="w-full text-xs rounded-md bg-gray-700 border-gray-600 text-white p-1"></td>
+                    <td class="px-3 py-2"><input id="vid-input-${id}" type="text" value="${d.vid||''}" class="w-full text-xs rounded-md bg-gray-700 border-gray-600 text-white p-1"></td>
+                    <td class="px-3 py-2"><button class="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700" onclick="event.stopPropagation(); saveInlineItemChange('${id}','img-input-${id}','vid-input-${id}',this)">保存</button></td>
+                </tr>`;
+            }
+            adminTableContainer.innerHTML = html + `</tbody></table></div>`;
         }
 
         function updateFisheyeEffect() {
@@ -437,7 +459,6 @@
         };
 
         function setupDOM() {
-            // 所有 DOM 获取
             gridContainer = document.getElementById('grid-container');
             modal = document.getElementById('video-modal');
             videoPlayer = document.getElementById('video-player');
@@ -554,13 +575,13 @@
                 document.title = DEFAULT_CONTENT.webTitle;
                 mainTitleEl.textContent = DEFAULT_CONTENT.title;
                 subTextEl.textContent = DEFAULT_CONTENT.subtitle;
-                for (let i = 0; i < TOTAL_ITEMS; i++) itemData[`item_${i}`] = { img: null, vid: PLACEHOLDER_VID, bgColor: getColorForColumn(getColumnIndex(i)) };
+                for (let i = 0; i < TOTAL_ITEMS; i++) itemData[`item_${i}`] = { img: null, vid: PLACEure HOLDER_VID, bgColor: getColorForColumn(getColumnIndex(i)) };
                 createGrid(); startAnimationLoop();
             }
         });
     </script>
 
-    <!-- 完整 HTML（新增闪烁频率 & 幅度调节） -->
+    <!-- 完整 HTML（已加入闪烁频率 & 幅度调节） -->
     <div id="top-content-area" class="fixed top-0 left-0 right-0 p-8 md:p-12 z-20 text-white pointer-events-none transition-all duration-300">
         <div id="admin-persistent-controls" class="absolute top-8 right-8 md:top-12 md:right-12 z-30 flex space-x-4 pointer-events-auto">
             <button id="view-toggle-btn" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-150 hidden" 
@@ -640,13 +661,13 @@
                         <div><label class="block text-sm font-medium text-gray-400">最大放大</label><input id="edit-max-scale" type="number" step="0.1" min="1.0" max="5.0" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="3.0"/></div>
                         <div><label class="block text-sm font-medium text-gray-400">动画平滑度</label><input id="edit-parallax-smoothing" type="number" step="0.01" min="0.01" max="1.0" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="0.2"/></div>
                         <div><label class="block text-sm font-medium text-gray-400">整体缩放</label><input id="edit-canvas-scale" type="number" step="0.05" min="0.5" max="2.0" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="1.0"/></div>
-                        <div class="col-span-2 lg:col-span-3">
+                        <div class="col-span-2 lg:col-span-6">
                             <label class="block text-sm font-medium text-gray-400 mb-1">左右平移 (-2000 ~ +2000px)</label>
                             <input id="edit-canvas-offset-x" type="range" min="-2000" max="2000" step="50" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" value="0"/>
                             <div class="text-center text-white text-sm mt-1"><span id="offset-value">0</span> px</div>
                         </div>
-                        <div><label class="block text-sm font-medium text-gray-400">闪烁频率</label><input id="edit-twinkle-speed" type="number" step="0.05" min="0.1" max="2.0" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="0.2"/></div>
-                        <div><label class="block text-sm font-medium text-gray-400">闪烁幅度</label><input id="edit-twinkle-intensity" type="number" step="0.05" min="0.1" max="1.0" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="0.6"/></div>
+                        <div><label class="block text-sm font-medium text-gray-400">闪烁频率 (0.1x ~ 2.0x)</label><input id="edit-twinkle-speed" type="number" step="0.05" min="0.1" max="2.0" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="0.2"/></div>
+                        <div><label class="block text-sm font-medium text-gray-400">闪烁幅度 (0.1 ~ 1.0)</label><input id="edit-twinkle-intensity" type="number" step="0.05" min="0.1" max="1.0" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="0.6"/></div>
                     </div>
                 </div>
             </div>
@@ -657,7 +678,6 @@
         </div>
     </div>
 
-    <!-- 其余 HTML 保持不变 -->
     <div id="admin-table-view" class="fixed inset-0 p-4 md:p-12 z-10 hidden overflow-auto pointer-events-auto">
         <h1 class="text-3xl font-bold mb-4 text-red-400">网格素材列表编辑 (共 60 个项目)</h1>
     </div>
