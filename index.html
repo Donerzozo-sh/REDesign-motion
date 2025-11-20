@@ -165,33 +165,40 @@
         };
 
         window.switchView = view => {
-            if (!isAdminMode) return;
-            window.currentView = view;
-            const gridEl = document.getElementById('grid-container');
-            const tableEl = document.getElementById('admin-table-view');
-            const topEdit = document.getElementById('edit-mode-container');
-            const display = document.getElementById('content-display');
-            const controls = document.getElementById('admin-persistent-controls');
+    if (!isAdminMode) return;
+    window.currentView = view;
+    const gridEl = document.getElementById('grid-container');
+    const tableEl = document.getElementById('admin-table-view');
+    const topEdit = document.getElementById('edit-mode-container');
+    const display = document.getElementById('content-display');
+    const controls = document.getElementById('admin-persistent-controls');
 
-            if (view === 'table') {
-                isFocusMode = false;
-                gridEl.classList.add('hidden');
-                tableEl.classList.remove('hidden');
-                renderAdminTable();
-                topEdit.classList.add('hidden');
-                display.classList.add('hidden');
-                controls.classList.remove('z-30'); controls.classList.add('z-50');
-                viewToggleBtn.textContent = '返回网格视图';
-            } else {
-                resetFocusAndScale();
-                gridEl.classList.remove('hidden');
-                tableEl.classList.add('hidden');
-                display.classList.remove('hidden');
-                window.toggleEditMode(false);
-                controls.classList.remove('z-50'); controls.classList.add('z-30');
-                viewToggleBtn.textContent = '切换到列表编辑';
-                 }
-        };
+    if (view === 'table') {
+        isFocusMode = false;
+        gridEl.classList.add('hidden');
+        tableEl.classList.remove('hidden');
+        renderAdminTable();
+        topEdit.classList.add('hidden');
+        display.classList.add('hidden');
+        controls.classList.remove('z-30'); 
+        controls.classList.add('z-50');
+        viewToggleBtn.textContent = '返回网格视图';
+    } else {
+        // ===== 关键修复：切回网格时强制刷新一次所有素材 =====
+        resetFocusAndScale();
+        updateGridDOM();                // ← 加这一行，彻底解决黑屏
+        setTimeout(cacheItemPositions, 100); // 再保险一次位置缓存
+        // =========================================================
+
+        gridEl.classList.remove('hidden');
+        tableEl.classList.add('hidden');
+        display.classList.remove('hidden');
+        window.toggleEditMode(false);
+        controls.classList.remove('z-50'); 
+        controls.classList.add('z-30');
+        viewToggleBtn.textContent = '切换到列表编辑';
+    }
+};
 
         function resetFocusAndScale() {
             isFocusMode = false; selectedItemId = null;
@@ -654,6 +661,7 @@
     </div>
 </body>
 </html>
+
 
 
 
