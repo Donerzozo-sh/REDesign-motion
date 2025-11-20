@@ -43,6 +43,48 @@
 <body>
 
     <script type="module">
+                function renderAdminTable() {
+            if (!adminTableContainer) return;
+            let html = `
+                <div class="bg-gray-900/95 backdrop-blur-md rounded-xl p-6 max-w-7xl mx-auto">
+                    <h1 class="text-3xl font-bold mb-6 text-red-400">网格素材列表编辑 (共 60 个位置)</h1>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            `;
+
+            for (let i = 0; i < TOTAL_ITEMS; i++) {
+                const id = `item_${i}`;
+                const data = itemData[id] || { img: '', vid: PLACEHOLDER_VID, bgColor: getColorForColumn(getColumnIndex(i)) };
+                const thumb = renderLocationThumbnail(i, data.bgColor || getColorForColumn(getColumnIndex(i)));
+
+                html += `
+                    <div id="row-${id}" class="admin-table-row bg-gray-800/80 rounded-lg p-4 hover:bg-gray-700/80 transition-all cursor-pointer border border-gray-700">
+                        <div class="flex items-start space-x-4">
+                            <div class="flex-shrink-0">${thumb}</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm text-gray-500 mb-2">位置 ${i} (第 ${getColumnIndex(i)+1} 列)</div>
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="text-xs text-gray-400">封面图 URL</label>
+                                        <input id="img_${id}" type="text" value="${data.img || ''}" placeholder="留空则显示纯色背景" class="w-full mt-1 px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-white text-xs">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-400">视频 URL</label>
+                                        <input id="vid_${id}" type="text" value="${data.vid || ''}" placeholder="必填，默认备用视频" class="w-full mt-1 px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-white text-xs">
+                                    </div>
+                                    <button onclick="saveInlineItemChange('${id}', 'img_${id}', 'vid_${id}', this)" 
+                                            class="mt-3 px-4 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition">
+                                        保存
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += `</div></div>`;
+            adminTableContainer.innerHTML = html;
+        }
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -184,12 +226,6 @@
         controls.classList.add('z-50');
         viewToggleBtn.textContent = '返回网格视图';
     } else {
-        // ===== 关键修复：切回网格时强制刷新一次所有素材 =====
-        resetFocusAndScale();
-        updateGridDOM();                // ← 加这一行，彻底解决黑屏
-        setTimeout(cacheItemPositions, 100); // 再保险一次位置缓存
-        // =========================================================
-
         gridEl.classList.remove('hidden');
         tableEl.classList.add('hidden');
         display.classList.remove('hidden');
@@ -661,6 +697,7 @@
     </div>
 </body>
 </html>
+
 
 
 
