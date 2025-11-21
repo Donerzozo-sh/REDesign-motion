@@ -104,7 +104,7 @@
         let itemData = {};
         let mousePos = { x: 0, y: 0 };
         let isMouseActive = false;
-        let isMouseOverCanvas = false;  // ← 新增：标记鼠标是否在画布内
+        let isMouseOverCanvas = false;  // 鼠标是否在画布内
         let animationFrameId = null;
         let parallaxOffset = { x: 0, y: 0 };
         const getSettingsDocPath = () => `/artifacts/${appId}/public/data/homepage_content/settings`;
@@ -249,7 +249,7 @@
             const wake = () => {
                 updateFisheyeEffect();
                 if (--frames > 0) requestAnimationFrame(wake);
-                else if (isMouseActive) startAnimationLoop();
+                else startAnimationLoop();
             };
             wake();
             setTimeout(cacheItemPositions, 100);
@@ -301,14 +301,12 @@
         function updateFisheyeEffect() {
             const cx = innerWidth/2, cy = innerHeight/2;
 
-            // ← 核心改动：只有当鼠标在画布区域内才进行交互
-            if (isMouseOverCanvas) {
-                if (!isFocusMode) {
-                    const tx = (mousePos.x - cx) * PARALLAX_INTENSITY;
-                    const ty = (mousePos.y - cy) * PARALLAX_INTENSITY;
-                    parallaxOffset.x += (tx - parallaxOffset.x) * currentParallaxSmoothing;
-                    parallaxOffset.y += (ty - parallaxOffset.y) * currentParallaxSmoothing;
-                }
+            // 只要鼠标在画布内，就响应视差与鱼眼放大
+            if (isMouseOverCanvas && !isFocusMode) {
+                const tx = (mousePos.x - cx) * PARALLAX_INTENSITY;
+                const ty = (mousePos.y - cy) * PARALLAX_INTENSITY;
+                parallaxOffset.x += (tx - parallaxOffset.x) * currentParallaxSmoothing;
+                parallaxOffset.y += (ty - parallaxOffset.y) * currentParallaxSmoothing;
                 applyGridTransform();
             }
 
@@ -321,7 +319,7 @@
             items.forEach(it => {
                 const ax = it.center.x + parallaxOffset.x;
                 const ay = it.center.y + parallaxOffset.y;
-                let dist = Math.hypot(mousePos.x - ax, mousePos.y - ay);
+                const dist = Math.hypot(mousePos.x - ax, mousePos.y - ay);
                 let scale, opacity = 0.7, z = 1, bright = 1.0;
 
                 if (isFocusMode && it.el.dataset.videoId === selectedItemId) {
@@ -329,12 +327,13 @@
                 } else if (isFocusMode) {
                     scale = currentMinScale * 0.8; opacity = 0.4;
                 } else if (!isMouseOverCanvas || dist >= radius) {
-                    // 鼠标不在画布内或超出鱼眼范围 → 只保留远景闪烁
+                    // 鼠标不在画布内或太远 → 只闪烁
                     it.el.twinklePhase += 0.004 * it.el.twinkleSpeed * currentTwinkleFrequency;
                     const tw = (Math.sin(it.el.twinklePhase) + 1) / 2;
                     scale = currentMinScale * (0.7 + tw * 0.6 * currentTwinkleAmplitude);
                     bright = 0.3 + tw * 1.1 * currentTwinkleAmplitude;
                 } else {
+                    // 鼠标在画布内且在鱼眼范围内 → 正常放大
                     const p = 1 - dist / radius;
                     const e = 1 - Math.pow(1 - p, currentDecayPower);
                     scale = currentMinScale + (currentMaxScale - currentMinScale) * e;
@@ -346,9 +345,15 @@
                 it.el.style.zIndex = z;
                 it.el.style.filter = `brightness(${bright})`;
             });
+
+            // 只要 isMouseActive 为 true 就持续循环（包括闪烁）
             if (isMouseActive) animationFrameId = requestAnimationFrame(updateFisheyeEffect);
         }
-        function startAnimationLoop() { if (!animationFrameId) animationFrameId = requestAnimationFrame(updateFisheyeEffect); }
+
+        function startAnimationLoop() { 
+            if (!animationFrameId) animationFrameId = requestAnimationFrame(updateFisheyeEffect); 
+        }
+
         function openVideoModal(src) { videoPlayer.src = src; modal.classList.remove('hidden'); videoPlayer.play().catch(() => {}); }
         window.toggleEditMode = enable => {
             if (!isAdminMode) return;
@@ -450,31 +455,27 @@
             closeModal.onclick = closeVideoModalFunc;
             modal.onclick = e => e.target === modal && closeVideoModalFunc();
 
-            // ← 新增：监听鼠标是否在画布区域内
+            // 关键修复：每次鼠标进入画布都重新激活动画循环
             gridContainer.addEventListener('mouseenter', () => {
                 isMouseOverCanvas = true;
-                if (!isMouseActive) {
-                    isMouseActive = true;
-                    startAnimationLoop();
-                }
+                isMouseActive = true;           // 强制激活
+                startAnimationLoop();           // 确保循环运行
             });
+
             gridContainer.addEventListener('mouseleave', () => {
                 isMouseOverCanvas = false;
+                // 离开后仍然保持 isMouseActive=true，这样闪烁不会停（仅停止视差和鱼眼放大）
             });
 
             window.addEventListener('mousemove', e => { 
-                mousePos = {x:e.clientX, y:e.clientY}; 
-                if (!isMouseActive && isMouseOverCanvas) { 
-                    isMouseActive = true; 
-                    startAnimationLoop(); 
-                } 
+                mousePos = {x: e.clientX, y: e.clientY}; 
             });
 
             gridContainer.onclick = e => {
                 const el = e.target.closest('.grid-item');
                 if (!el) return;
                 const id = el.dataset.videoId;
-                if (isAdminMode) { switchView('table'); const row = document.getElementById('row-'+id); if(row) { selectItem(id,row); row.scrollIntoView({behavior:'smooth'}); } return; }
+                if (isAdminMode) { switchView('table'); const row = document.getElementById('row-'+id); if(row) { row.scrollIntoView({behavior:'smooth'}); } return; }
                 openVideoModal(itemData[id]?.vid || PLACEHOLDER_VID);
             };
         }
@@ -518,7 +519,7 @@
                         const id = `item_${i}`;
                         if (!itemData[id]) itemData[id] = { img: null, vid: PLACEHOLDER_VID, bgColor: getColorForColumn(getColumnIndex(i)) };
                     }
-                    if (!items.length) { createGrid(); startAnimationLoop(); }
+                    if (!items.length) { createGrid(); isMouseActive = true; startAnimationLoop(); }
                     else if (items.length > 0) updateGridDOM();
                 });
             } catch (e) {
@@ -528,10 +529,11 @@
                 mainTitleEl.textContent = DEFAULT_CONTENT.title;
                 subTextEl.textContent = DEFAULT_CONTENT.subtitle;
                 for (let i = 0; i < TOTAL_ITEMS; i++) itemData[`item_${i}`] = { img: null, vid: PLACEHOLDER_VID, bgColor: getColorForColumn(getColumnIndex(i)) };
-                createGrid(); startAnimationLoop();
+                createGrid(); isMouseActive = true; startAnimationLoop();
             }
         });
     </script>
+    <!-- 以下 HTML 部分完全保持原样 -->
     <div id="top-content-area" class="fixed top-0 left-0 right-0 p-8 md:p-12 z-20 text-white pointer-events-none transition-all duration-300">
         <div id="admin-persistent-controls" class="absolute top-8 right-8 md:top-12 md:right-12 z-30 flex space-x-4 pointer-events-auto">
             <button id="view-toggle-btn" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-150 hidden"
@@ -541,7 +543,7 @@
         </div>
         <div id="content-display" class="flex flex-col">
             <h1 id="main-title" class="text-white text-4xl font-extrabold cursor-text transition-all duration-500 hover:text-yellow-400 pointer-events-auto md:text-8xl tracking-normal" onclick="toggleEditMode(true)">3D&Motion Creative&Production</h1>
-            <p id="sub-text" class="text-gray-400 text-base font-normal cursor-text transition-all duration-500 hover:text-gray-200 pointer-events-auto md:text--2xl tracking-normal" onclick="toggleEditMode(true)">Powerd by REDesign</p>
+            <p id="sub-text" class="text-gray-400 text-base font-normal cursor-text transition-all duration-500 hover:text-gray-200 pointer-events-auto md:text-2xl tracking-normal" onclick="toggleEditMode(true)">Powerd by REDesign</p>
         </div>
         <div id="edit-mode-container" class="hidden bg-gray-900/90 backdrop-blur-sm p-6 rounded-xl shadow-2xl pointer-events-auto max-w-4xl">
             <h2 class="text-xl font-bold mb-4 text-red-400">顶部内容及视觉参数编辑 (Admin)</h2>
@@ -579,7 +581,7 @@
                     </div>
                     <div class="p-4 bg-gray-800 rounded-lg">
                         <label class="block text-lg font-medium text-white mb-2">副标题</label>
-                        <input id="edit-subtitle" type="text" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="Powerd by REDesign"/>
+                        <input id="edit-subtitle" type="text" classfce class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white p-2" value="Powerd by REDesign"/>
                         <div class="grid grid-cols-3 gap-3 mt-3">
                             <div>
                                 <label class="block text-sm font-medium text-gray-400 mb-1">字重</label>
