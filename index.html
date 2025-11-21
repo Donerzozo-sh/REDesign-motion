@@ -209,6 +209,61 @@
         };
 
         // ==================== 保存永远成功 ====================
+        function renderAdminTable() {
+    if (!adminTableContainer) return;
+    
+    let html = `
+        <div class="bg-gray-900/95 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h1 class="text-3xl font-bold mb-6 text-red-400 flex items-center justify-between">
+                网格素材列表编辑 (共 60 个项目)
+                <button onclick="switchView('grid')" class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 text-sm">返回网格视图</button>
+            </h1>
+            <div class="grid grid-cols-1 gap-4 max-w-5xl mx-auto">
+    `;
+
+    for (let i = 0; i < TOTAL_ITEMS; i++) {
+        const id = `item_${i}`;
+        const data = itemData[id] || { img: '', vid: PLACEHOLDER_VID, bgColor: getColorForColumn(getColumnIndex(i)) };
+        const thumb = renderLocationThumbnail(i, data.bgColor);
+
+        html += `
+            <div id="row-${id}" class="admin-table-row bg-gray-800/70 rounded-lg p-4 flex flex-col md:flex-row items-center gap-4 border border-gray-700 hover:border-gray-500 transition-all">
+                <!-- 位置缩略图 -->
+                <div class="flex-shrink-0">${thumb}</div>
+                
+                <!-- 序号 -->
+                <div class="w-12 text-center text-gray-400 font-mono">#${i.toString().padStart(2, '0')}</div>
+                
+                <!-- 图片 URL -->
+                <div class="flex-1">
+                    <label class="block text-xs text-gray-400 mb-1">图片 URL（留空则显示纯色）</label>
+                    <input type="text" id="img_${id}" value="${data.img || ''}" placeholder="https://..." class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-red-500">
+                </div>
+                
+                <!-- 视频 URL -->
+                <div class="flex-1">
+                    <label class="block text-xs text-gray-400 mb-1">视频 URL（必填）</label>
+                    <input type="text" id="vid_${id}" value="${data.vid || PLACEHOLDER_VID}" placeholder="https://..." class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-red-500">
+                </div>
+                
+                <!-- 保存按钮 -->
+                <div class="flex-shrink-0">
+                    <button onclick="saveInlineItemChange('${id}', 'img_${id}', 'vid_${id}', this)" 
+                            class="px-6 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition whitespace-nowrap">
+                        保存
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    html += `
+            </div>
+        </div>
+    `;
+
+    adminTableContainer.innerHTML = html;
+}
         window.saveInlineItemChange = async (itemId, imgInputId, vidInputId, btn) => {
             const newImg = document.getElementById(imgInputId).value.trim();
             const newVid = document.getElementById(vidInputId).value.trim();
@@ -655,5 +710,6 @@
     </div>
 </body>
 </html>
+
 
 
